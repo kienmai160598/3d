@@ -18,6 +18,7 @@ export interface PreviewMeshVertex {
 }
 
 export interface PreviewMesh {
+  preserveNormals?: boolean;
   apiIndex: number;
   sourceLine: number;
   apiName: string;

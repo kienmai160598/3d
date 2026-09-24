@@ -49,7 +49,7 @@ export function buildGeometryVertices(scene: PreviewGeometryScene): { vertices: 
       }
     }
     const creaseCosine = 0.819152;
-    const smooth = mesh.apiName !== 'makeFacettedCylinder';
+    const smooth = !mesh.preserveNormals && mesh.apiName !== 'makeFacettedCylinder';
     for (const face of faces) {
       for (const index of face.indices) {
         let normal = face.normal;
@@ -69,6 +69,7 @@ export function buildGeometryVertices(scene: PreviewGeometryScene): { vertices: 
           if (sum.lengthSquared() > 0) normal = sum.normalized();
         }
         const v = mesh.vertices[index];
+        if (mesh.preserveNormals) normal = new QVector3D(v.nx, v.ny, v.nz);
         vertices.push(v.x, v.y, v.z, mesh.color.r, mesh.color.g, mesh.color.b, normal.x, normal.y, normal.z);
       }
     }

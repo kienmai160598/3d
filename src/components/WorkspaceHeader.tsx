@@ -1,8 +1,10 @@
+import type { WorkspaceHeaderProps } from '../types/modelFiles';
+import { ModelFileControls } from './ModelFileControls';
 import { Button } from './ui/button';
 import { Box, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 
-export function WorkspaceHeader() {
+export function WorkspaceHeader({ files }: WorkspaceHeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const ThemeIcon = theme === 'light' ? Moon : Sun;
 
@@ -13,6 +15,7 @@ export function WorkspaceHeader() {
       </div>
       <h1 className="truncate text-sm font-semibold tracking-tight sm:text-[15px]">Geometry Preview</h1>
       <div className="flex-1" />
+      <ModelFileControls {...files} />
       <Button
         type="button"
         variant="outline"

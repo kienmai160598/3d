@@ -1,3 +1,4 @@
+import { useModelFiles } from './useModelFiles';
 import { useEffect, useState } from 'react';
 import { MainWindow } from './mainWindow/MainWindow';
 import { useObservable } from './useObservable';
@@ -5,6 +6,7 @@ import { useObservable } from './useObservable';
 export function useMainWindow() {
   const [mainWindow] = useState(() => new MainWindow());
   useObservable(mainWindow);
+  const files = useModelFiles(mainWindow);
 
   useEffect(() => {
     document.title = 'Geometry Preview';
@@ -21,6 +23,9 @@ export function useMainWindow() {
   }, [mainWindow]);
 
   return {
+    files,
+    importedObj: mainWindow.importedObj,
+    returnToCodePreview: mainWindow.returnToCodePreview,
     menus: mainWindow.menus,
     toolbarItems: mainWindow.toolbarItems,
     inspectorCounts: mainWindow.inspectorCounts,

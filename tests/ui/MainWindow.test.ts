@@ -1,3 +1,4 @@
+import { parseObj } from '../../src/core/formats/obj';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiTracePanelModel } from '../../src/hooks/apiTrace/ApiTracePanelModel';
 import { LinkPanelModel } from '../../src/hooks/linkPanel/LinkPanelModel';
@@ -198,6 +199,29 @@ describe('MainWindow', () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+  });
+
+  it('keeps OBJ preview independent from code edits and restores code on request', () => {
+    const { mw, editor, log } = createMainWindow();
+    mw.start();
+    editor.type(kSource, 6);
+    vi.advanceTimersByTime(220);
+    const imported = parseObj('v 0 0 0\nv 1 0 0\nv 0 1 0\nf 1 2 3');
+    mw.replacePreviewWithObj(imported, 'triangle.obj');
+    expect(editor.text).toBe(kSource);
+    expect(mw.canExportObj).toBe(true);
+    expect(parseObj(mw.exportObj()).meshes[0].indices).toHaveLength(3);
+    log.length = 0;
+    editor.type(kSource.replace('double w = 2', 'double w = 4'), 6);
+    vi.advanceTimersByTime(220);
+    expect(log).not.toContain('setGeometryScene(obj)');
+    expect(log).not.toContain('setRuntimeResult(obj)');
+    expect(mw.importedObj?.name).toBe('triangle.obj');
+    mw.returnToCodePreview();
+    expect(mw.importedObj).toBeNull();
+    expect(log).toContain('setGeometryScene(obj)');
+    expect(parseObj(mw.exportObj()).meshes[0].indices.length).toBeGreaterThan(3);
+    mw.dispose();
   });
 
   it('starts like the Qt constructor and debounces edits by 220 ms', () => {

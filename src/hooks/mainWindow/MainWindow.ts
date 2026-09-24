@@ -1,3 +1,4 @@
+import { writeObj } from '../../core/formats/obj';
 import type { InspectorCounts } from '../../types/dockArea';
 import type { ConnectorPreview } from '../../core/geometry/ConnectorPreview';
 import { PreviewGeometryEngine, type PreviewGeometryScene } from '../../core/geometry/PreviewGeometryEngine';
@@ -83,6 +84,49 @@ export class MainWindow extends Observable {
   readonly m_runtime = new GeometryRuntime();
   readonly m_geometryEngine = new PreviewGeometryEngine();
   m_geometryScene: PreviewGeometryScene = { meshes: [], warnings: [] };
+  importedObj: { name: string; scene: PreviewGeometryScene } | null = null;
+  #connectorPreviews: readonly ConnectorPreview[] = [];
+  #selectedConnectorId = -1;
+  #showGeometryAction: Action | null = null;
+
+  get canExportObj(): boolean {
+    return (
+      (this.importedObj?.scene.meshes.length ??
+        this.m_geometryScene.meshes.length +
+          this.#connectorPreviews.reduce((sum, preview) => sum + preview.meshes.length, 0)) > 0
+    );
+  }
+
+  replacePreviewWithObj(scene: PreviewGeometryScene, name: string): void {
+    this.importedObj = { scene, name };
+    this.#showGeometryAction?.setChecked(true);
+    this.m_viewport.clearApiFocus();
+    this.m_viewport.setRuntimeResult(emptyRuntimeResult());
+    this.m_viewport.setConnectorPreviews([], -1);
+    this.m_viewport.setGeometryScene(scene);
+    this.m_viewport.fitScene();
+    this.changed();
+  }
+
+  readonly returnToCodePreview = (): void => {
+    this.importedObj = null;
+    this.runPreview();
+    this.m_viewport.setConnectorPreviews(this.#connectorPreviews, this.#selectedConnectorId);
+    this.m_viewport.fitScene();
+    this.changed();
+  };
+
+  exportObj(): string {
+    if (!this.importedObj) this.runPreview();
+
+    return writeObj(
+      this.importedObj?.scene ?? {
+        meshes: [...this.m_geometryScene.meshes, ...this.#connectorPreviews.flatMap((preview) => preview.meshes)],
+        warnings: [],
+      },
+    );
+  }
+
   inspectorCounts: InspectorCounts = { VariablesDock: 0, ParametersDock: 0, ApiTraceDock: 0 };
   m_lastResult: RuntimeResult = emptyRuntimeResult();
   m_currentPreviewLine = 0;
@@ -141,6 +185,10 @@ export class MainWindow extends Observable {
     selectedId: number,
     tested: boolean,
   ): void => {
+    this.#connectorPreviews = previews;
+    this.#selectedConnectorId = selectedId;
+    this.changed();
+    if (this.importedObj) return;
     if (tested) this.m_apiTrace.clearApiFocus();
     this.m_viewport.setConnectorPreviews(previews, selectedId);
     if (tested) this.m_viewport.fitScene();
@@ -177,11 +225,13 @@ export class MainWindow extends Observable {
   };
 
   readonly onViewportMeshSelection = (apiIndex: number, sourceLine: number): void => {
+    if (this.importedObj || apiIndex < 0) return;
     this.m_apiTrace.selectMeshApiCall(apiIndex);
     this.navigateToSource(sourceLine, new Set([sourceLine]));
   };
 
   readonly onViewportPointCreation = (point: Vec3): void => {
+    if (this.importedObj) return;
     this.insertPointFromViewport(point);
   };
 
@@ -246,6 +296,7 @@ export class MainWindow extends Observable {
     clearFocusAction.onTriggered(() => this.m_apiTrace.clearApiFocus());
 
     const showGeometryAction = new Action('Show &Geometry');
+    this.#showGeometryAction = showGeometryAction;
     showGeometryAction.setCheckable(true);
     showGeometryAction.setChecked(true);
 
@@ -400,8 +451,10 @@ export class MainWindow extends Observable {
     this.m_parameters.updateRuntimeResult(result);
 
     this.m_geometryScene = this.m_geometryEngine.build(result);
-    this.m_viewport.setGeometryScene(this.m_geometryScene);
-    this.m_viewport.setRuntimeResult(result);
+    if (!this.importedObj) {
+      this.m_viewport.setGeometryScene(this.m_geometryScene);
+      this.m_viewport.setRuntimeResult(result);
+    }
     this.m_links.updateRuntimeResult(result);
     this.applyApiFocus(this.m_apiTrace.selectedApiCall());
 
@@ -422,6 +475,7 @@ export class MainWindow extends Observable {
   }
 
   applyApiFocus(apiIndex: number): void {
+    if (this.importedObj) return;
     this.m_viewport.setSelectedApiCall(apiIndex, apiIndex >= 0 && this.m_apiTrace.meshApiCall() === apiIndex);
     if (apiIndex < 0 || apiIndex >= this.m_lastResult.apiCalls.length) {
       this.m_viewport.clearApiFocus();

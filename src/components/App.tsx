@@ -1,3 +1,4 @@
+import { Button } from './ui/button';
 import { Box, CodeXml } from 'lucide-react';
 import { useCompactLayout } from '../hooks/useCompactLayout';
 import { useDockArea } from '../hooks/useDockArea';
@@ -23,7 +24,22 @@ export function App() {
 
   return (
     <div className="flex h-dvh w-full flex-col overflow-x-hidden overflow-y-auto bg-window select-none">
-      <WorkspaceHeader />
+      <WorkspaceHeader files={mainWindow.files.controls} />
+      {mainWindow.files.message && (
+        <div
+          role={mainWindow.files.error ? 'alert' : 'status'}
+          className="flex items-center gap-2 border-b border-line bg-base px-3 py-2 text-xs"
+        >
+          <span
+            className={mainWindow.files.error ? 'min-w-0 flex-1 text-error' : 'min-w-0 flex-1 text-muted-foreground'}
+          >
+            {mainWindow.files.message}
+          </span>
+          <Button variant="ghost" size="sm" onClick={mainWindow.files.dismissMessage}>
+            Dismiss
+          </Button>
+        </div>
+      )}
       <main className="flex min-h-[1000px] flex-1 flex-col p-3 md:min-h-[600px]">
         <div className="min-h-0 flex-1">
           <Splitter
@@ -56,6 +72,16 @@ export function App() {
                   </PanelHeader>
                   <div className="workspace-surface relative min-h-0 flex-1 overflow-hidden bg-viewport">
                     <Viewport3D {...mainWindow.viewport} />
+                    {mainWindow.importedObj && (
+                      <div className="absolute top-2 right-2 left-2 flex items-center gap-2 rounded-md border border-line bg-base/95 p-2 text-xs">
+                        <span className="min-w-0 flex-1 truncate" title={mainWindow.importedObj.name}>
+                          OBJ preview · {mainWindow.importedObj.name}
+                        </span>
+                        <Button size="sm" variant="outline" onClick={mainWindow.returnToCodePreview}>
+                          Return to code
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </section>
                 <ResizeHandle
@@ -67,18 +93,33 @@ export function App() {
                   onPointerDown={onSeparatorPointerDown}
                   onKeyDown={onSeparatorKeyDown}
                 />
-                <DockArea
-                  counts={mainWindow.inspectorCounts}
-                  height={dockHeight}
-                  title={title}
-                  tabs={tabs}
-                  panels={{
-                    VariablesDock: <VariablePanel {...mainWindow.variables} />,
-                    ParametersDock: <ParameterPanel {...mainWindow.parameters} />,
-                    ApiTraceDock: <ApiTracePanel {...mainWindow.apiTrace} />,
-                    LinkDock: <LinkPanel {...mainWindow.links} />,
-                  }}
-                />
+                {mainWindow.importedObj ? (
+                  <section
+                    aria-label="Imported model inspector"
+                    style={{ height: dockHeight }}
+                    className="workspace-panel flex shrink-0 flex-col items-center justify-center gap-2 border border-line bg-base p-3 text-center text-xs"
+                  >
+                    <p className="font-medium">Imported OBJ model</p>
+                    <p className="text-muted-foreground">OBJ contains mesh geometry, not editable C++ parameters.</p>
+                    <Button size="sm" variant="outline" onClick={mainWindow.returnToCodePreview}>
+                      Return to code preview
+                    </Button>
+                  </section>
+                ) : null}
+                <div className={mainWindow.importedObj ? 'hidden' : 'contents'}>
+                  <DockArea
+                    counts={mainWindow.inspectorCounts}
+                    height={dockHeight}
+                    title={title}
+                    tabs={tabs}
+                    panels={{
+                      VariablesDock: <VariablePanel {...mainWindow.variables} />,
+                      ParametersDock: <ParameterPanel {...mainWindow.parameters} />,
+                      ApiTraceDock: <ApiTracePanel {...mainWindow.apiTrace} />,
+                      LinkDock: <LinkPanel {...mainWindow.links} />,
+                    }}
+                  />
+                </div>
               </div>
             </div>
           </Splitter>
